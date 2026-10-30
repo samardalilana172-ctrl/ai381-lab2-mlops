@@ -7,14 +7,29 @@ ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
 
 WORKDIR /build
 
+RUN apt-get update && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+RUN pip install --no-cache-dir --upgrade \
+    msgpack==1.2.3 \
+    setuptools==83.0.0 \
+    urllib3==2.8.0 \
+    pytest==9.0.3
+
+RUN rm -rf \
+    /opt/venv/lib/python3.13/site-packages/pip \
+    /opt/venv/lib/python3.13/site-packages/pip-*.dist-info
 
 FROM python:3.13-slim AS runtime
+
+RUN apt-get update && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -25,6 +40,13 @@ WORKDIR /app
 RUN useradd --create-home --uid 10001 appuser
 
 COPY --from=builder /opt/venv /opt/venv
+
+RUN rm -rf \
+    /usr/local/lib/python3.13/site-packages/pip \
+    /usr/local/lib/python3.13/site-packages/pip-*.dist-info \
+    /usr/local/lib/python3.13/site-packages/setuptools \
+    /usr/local/lib/python3.13/site-packages/setuptools-*.dist-info
+
 COPY src/ ./src/
 COPY model.joblib ./model.joblib
 
